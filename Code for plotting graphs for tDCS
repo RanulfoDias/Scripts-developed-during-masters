@@ -1,0 +1,76 @@
+#Pacotes
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+
+# Abre o arquivo original para leitura
+with open('/content/simnibs_data - 4 eletrodos - 169 simulações.txt', "r", encoding="latin-1") as arquivo:
+    simnibs = arquivo.read()
+
+# Expressão regular para extrair as informações de cada simulação
+pattern_sim = r"Simulacao_(\d+) - Centres: (.+?)\n([\w\W]+?)(?=\nSimulacao_|$)"
+
+# Encontra todas as correspondências na string
+matches_sim = re.findall(pattern_sim, simnibs)
+
+# Lista para armazenar os dados de todas as simulações
+simulacoes = []
+
+# Lista para armazenar os valores de "E" por simulação
+valores_e = []
+
+# Lista para armazenar os números de simulação
+numeros_simulacao = []
+
+# Define o intervalo para mostrar os números de simulação (exibir um a cada N simulações)
+intervalo_exibicao = 10  # Ajuste o valor conforme necessário
+
+# Loop através das correspondências das simulações
+for i, match in enumerate(matches_sim):
+    numero_simulacao = match[0]
+    eletrodos_simulacao = match[1]
+    dados_simulacao = match[2]
+
+    # Processar os dados da simulação
+    sim_data = {
+        'Numero_Simulacao': int(numero_simulacao),
+        'Centres': eletrodos_simulacao
+    }
+
+    # Extrair os valores de "E" da tabela de percentis e remover as unidades
+    field_match = re.findall(r"\|E\s*\|(.+?)\s*V/m", dados_simulacao)
+    if field_match:
+        sim_data['E'] = float(field_match[0])
+        valores_e.append(sim_data['E'])
+        numeros_simulacao.append(sim_data['Numero_Simulacao'])
+
+    # Adicionar os dados da simulação à lista
+    simulacoes.append(sim_data)
+
+# Converter a lista de dicionários em um DataFrame do pandas
+df = pd.DataFrame(simulacoes)
+
+# Visualização dos Dados:
+# Vamos criar um gráfico de barras com os números de simulação no eixo das abscissas
+plt.figure(figsize=(10, 6))
+plt.bar(range(1, len(valores_e) + 1), valores_e, align='center')
+plt.title('Valores de E por Simulação')
+plt.xlabel('Número de Simulação')
+plt.ylabel('Valor de E (V/m)')
+
+# Define os números de simulação a serem exibidos no eixo x
+numeros_exibicao = numeros_simulacao[::intervalo_exibicao]
+indice_exibicao = [i for i, num in enumerate(numeros_simulacao) if num in numeros_exibicao]
+plt.xticks([indice + 1 for indice in indice_exibicao], numeros_exibicao, rotation=45, ha='right')
+
+plt.tight_layout()
+plt.show()
+
+# Análise Estatística:
+# Você pode realizar análises estatísticas adicionais, como calcular médias, desvios padrão, etc.
+# Exemplo de cálculo da média e desvio padrão de E
+mean_e = df['E'].mean()
+std_e = df['E'].std()
+
+print(f'Média de E: {mean_e} V/m')
+print(f'Desvio Padrão de E: {std_e} V/m')
