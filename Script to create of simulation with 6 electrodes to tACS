@@ -1,0 +1,100 @@
+import random
+import time
+import threading
+import pygetwindow as gw
+from itertools import combinations
+from simnibs import sim_struct, run_simnibs
+
+# INICIALIZANDO A SESSÃO
+s = sim_struct.SESSION()
+
+# NOME DA MALHA DA CABEÇA
+s.subpath = r'C:\Users\laboratorio\Documents\simnibs4_examples\m2m_ernie'
+
+# PASTA DE SAÍDA
+s.pathfem = 'tutorialprincipal2/'
+
+# LISTA DE POSIÇÕES
+safe_positions = ['AF3', 'AF4', 'AF7', 'AF8', 'AFz', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'CP1', 'CP2', 'CP3', 'CP4', 'CP5','CP6', 'CPz', 'Cz', 'F1', 'F10', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'FC1', 'FC2', 'FC3', 'FC4', 'FC5', 'FC6', 'FCz', 'FT10', 'FT7', 'FT8', 'FT9', 'Fp1', 'Fp2', 'Fpz', 'Fz', 'I1', 'I2', 'Iz', 'LPA','Nz', 'P1', 'P10', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'PO10', 'PO3', 'PO4', 'PO7','PO8', 'PO9', 'POz', 'Pz', 'RPA', 'T10', 'T7', 'T8', 'T9', 'TP10', 'TP7', 'TP8', 'TP9']
+
+# GERANDO LISTA DE CANAIS DOS ELETRODOS PARA 6 ELETRODOS
+electrode_channels_6 = [1, 2, 3, 4, 5, 6]
+valid_electrode_combinations_6 = list(combinations(electrode_channels_6, 6))
+
+# NÚMERO DE SIMULAÇÕES PARA 6 ELETRODOS
+num_simulations_6 = 25
+
+simulations_data = []
+
+# LOOP DE SIMULAÇÃO PARA 6 ELETRODOS
+for sim_num in range(num_simulations_6):
+
+    # SELECIONE UMA COMBINAÇÃO DE ELETRODO
+    electrodes = random.choice(valid_electrode_combinations_6)
+
+    # SEPARAÇÃO DE POSIÇÕES PARA CÁTODOS E ÂNODOS
+    cathode_positions = random.sample(safe_positions, 3)
+
+    # Escolha aleatória de uma posição próxima de 90 graus para o ânodo
+    anode_positions = [pos for pos in safe_positions if pos not in cathode_positions]
+    random.shuffle(anode_positions)
+    anode_positions = anode_positions[:3]
+
+    # SELECIONANDO 2 CÁTODOS E 2 ÂNODOS ALEATORIAMENTE
+    selected_cathodes = random.sample(electrodes, 3)
+    selected_anodes = random.sample([ch for ch in electrodes if ch not in selected_cathodes], 3)
+
+    # INICIALIZAÇÃO DA SIMULAÇÃO tDCS
+    tdcslist = s.add_tdcslist()
+
+    # Adicione os parâmetros de corrente alternada
+    frequency = 100000  # Frequência em KiloHertz 
+    amplitude = 5.00e-01   # Amplitude (Amperes)
+    tdcslist.currents = [amplitude * (2 if sim_num % 2 == 0 else -2) * (1 if i % 2 == 0 else -1) for i in range(6)]
+    tdcslist.frequency = frequency
+
+    # INICIALIZAÇÃO DOS CÁTODOS
+    for i, cathode_ch in enumerate(selected_cathodes):
+        cathode = tdcslist.add_electrode()
+        cathode.channelnr = cathode_ch
+        cathode.dimensions = [30]  # Define o diâmetro do eletrodo cátodo como 30 mm
+        cathode.shape = 'ellipse'  # Define a forma do eletrodo cátodo como circular
+        cathode.thickness = 5
+        cathode.centre = cathode_positions[i]
+
+    # INICIALIZAÇÃO DOS ÂNODOS
+    for i, anode_ch in enumerate(selected_anodes):
+        anode = tdcslist.add_electrode()
+        anode.channelnr = anode_ch
+        anode.dimensions = [30]  # Define o diâmetro do eletrodo ânodo como 30 mm
+        anode.shape = 'ellipse'  # Define a forma do eletrodo ânodo como circular
+        anode.thickness = 5
+        anode.centre = anode_positions[i]
+
+# CLASSE PARA FECHAR AS JANELAS .msh
+def close_all_msh_windows():
+    while True:
+        for window in gw.getAllTitles():
+            if window.endswith(".msh"):
+                window_to_close = gw.getWindowsWithTitle(window)
+                if window_to_close:
+                    window_to_close[0].close()
+        time.sleep(1)  # Fecha em um segundo
+
+# RODAR A SIMULAÇÃO
+def run_simulation(s):
+    run_simnibs(s)
+
+# INICIA PARA RODAR AS SIMULAÇÕES
+simulation_thread = threading.Thread(target=run_simulation, args=(s,))
+simulation_thread.start()
+
+# FECHA AS JANELAS .msh
+window_closing_thread = threading.Thread(target=close_all_msh_windows)
+window_closing_thread.start()
+
+# COMANDO PARA AGUARDAR O PROCESSO
+simulation_thread.join()
+
+# AO TERMINAR OS PROCESSOS DA SIMULAÇÃO É FINALIZADO A THREAD
+window_closing_thread.join()
