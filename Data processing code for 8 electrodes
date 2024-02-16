@@ -1,0 +1,39 @@
+import pandas as pd
+import re
+import io
+
+# Abre o arquivo original para leitura
+with open('/content/8 eletrodos.log', "r", encoding="latin-1") as arquivo:
+    simnibs = arquivo.read()
+
+# Expressão regular para extrair as informações do "SUMMARY" e da tabela "Field Percentiles"
+pattern_summary = r"SUMMARY:[\s\n]+([\w\W]+?)(?=\n\[\s\w+)"
+pattern_centre = r"centre:\s+(\w+)"
+
+# Encontra todas as correspondências na string
+matches_summary = re.findall(pattern_summary, simnibs, re.DOTALL)
+matches_centre = re.findall(pattern_centre, simnibs)
+
+# Lista para armazenar as linhas de cada simulação
+lines = []
+
+# Loop através das correspondências do SUMMARY para cada simulação
+for i, summary in enumerate(matches_summary):
+    # Divide o SUMMARY em linhas
+    summary_lines = summary.strip().split('\n')
+
+    # Divide os eletrodos "centre" usados em cada simulação
+    eletrodos = matches_centre[i * 8 : (i + 1) * 8]
+
+    # Adiciona uma linha com a identificação da simulação e os eletrodos "centre" usados
+    lines.append(f"Simulacao_{i + 1} - Centres: {', '.join(eletrodos)}")
+
+    # Adiciona as linhas do SUMMARY
+    lines.extend(summary_lines)
+
+    # Adiciona uma linha em branco para separar as simulações
+    lines.append("")
+
+# Salva as linhas em um arquivo TXT
+with open('simnibs_data8.txt', "w", encoding="latin-1") as arquivo_novo:
+    arquivo_novo.write('\n'.join(lines))
